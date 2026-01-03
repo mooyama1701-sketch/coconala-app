@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import InputForm from './components/InputForm';
 import ResultDisplay from './components/ResultDisplay';
-import { generateConcept, generateAccountConcept, generateProfileCatchphrase, generateNameSuggestions, generateSelfIntroduction } from './lib/gemini';
+import { generateConcept, generateAccountConcept, generateProfileCatchphrase, generateNameSuggestions, generateSelfIntroduction, generateProfileMainText } from './lib/gemini';
 import ErrorBoundary from './components/ErrorBoundary';
 import ConceptDisplay from './components/ConceptDisplay';
 import ProfileGenerator from './components/ProfileGenerator';
 import SelfIntroGenerator from './components/SelfIntroGenerator';
 import ServiceContentGenerator from './components/ServiceContentGenerator';
+import ReportExport from './components/ReportExport';
 
 function App() {
   const [apiKey, setApiKey] = useState('');
@@ -15,11 +16,13 @@ function App() {
   const [loadingProfile, setLoadingProfile] = useState(false);
   const [loadingNames, setLoadingNames] = useState(false);
   const [loadingSelfIntro, setLoadingSelfIntro] = useState(false);
+  const [loadingProfileMainText, setLoadingProfileMainText] = useState(false);
 
   const [result, setResult] = useState(null);
   const [conceptResult, setConceptResult] = useState(null);
   const [profileResult, setProfileResult] = useState(null);
   const [introResult, setIntroResult] = useState(null); // 自己紹介文結果
+  const [profileMainTextResult, setProfileMainTextResult] = useState(null); // プロフィール本文結果
   const [showKeyInput, setShowKeyInput] = useState(false);
 
   // 生成時の入力内容を保持
@@ -28,6 +31,9 @@ function App() {
 
   // STEP6: サービス内容
   const [serviceContent, setServiceContent] = useState('');
+  const [serviceDetail, setServiceDetail] = useState('');
+  const [referenceProfile, setReferenceProfile] = useState('');
+  const [useCinderellaStory, setUseCinderellaStory] = useState(false);
 
   // ProfileGeneratorからLiftしたState
   const [sellerName, setSellerName] = useState('');
@@ -178,6 +184,43 @@ function App() {
     }
   };
 
+  const handleGenerateProfileMainText = async () => {
+    if (!apiKey) {
+      alert('APIキーを設定してください。');
+      return;
+    }
+    if (!serviceContent || !serviceDetail) {
+      alert('サービス内容と詳しい自己紹介を入力してください。');
+      return;
+    }
+
+    setLoadingProfileMainText(true);
+    setProfileMainTextResult(null);
+
+    try {
+      const text = await generateProfileMainText(
+        apiKey,
+        conceptResult, // コンセプト（JSON文字列の可能性があるので注意が必要だが、generateProfileMainText内で単純に埋め込むなら文字列として扱われる）
+        // conceptResultはSTEP3で返された文字列（JSONではない）のはず。generateAccountConceptはtext()を返している。
+        // 確認: generateAccountConceptは `return response.text();` しているので文字列。
+        // ただし、generateConcept (STEP1/2) はJSONオブジェクトを返している。
+        // ここでは STEP3の説明文(conceptResult)を使う。
+        selectedCatchphrase,
+        introResult,
+        serviceContent,
+        serviceDetail,
+        referenceProfile,
+        useCinderellaStory
+      );
+      setProfileMainTextResult(text);
+    } catch (error) {
+      console.error(error);
+      alert(error.message);
+    } finally {
+      setLoadingProfileMainText(false);
+    }
+  };
+
   return (
     <ErrorBoundary>
       <div className="container">
@@ -208,7 +251,7 @@ function App() {
         )}
 
         <header style={{ textAlign: 'center', marginBottom: '3rem' }}>
-          <h1>Coconala Architect</h1>
+          <h1>ココナラ・プロフィール作成</h1>
           <p className="subtitle">
             ターゲットの悩みを深掘りし、理想の未来を描くアカウント設計ガイド
           </p>
@@ -243,13 +286,35 @@ function App() {
           loading={loadingSelfIntro}
           introResult={introResult}
           selectedCatchphrase={selectedCatchphrase}
+          onCatchphraseChange={setSelectedCatchphrase}
           sellerName={sellerName}
         />
 
         <ServiceContentGenerator
           serviceContent={serviceContent}
           onServiceContentChange={setServiceContent}
+          serviceDetail={serviceDetail}
+          onServiceDetailChange={setServiceDetail}
+          referenceProfile={referenceProfile}
+          onReferenceProfileChange={setReferenceProfile}
           introResult={introResult}
+          onGenerateProfileMainText={handleGenerateProfileMainText}
+          loadingProfileMainText={loadingProfileMainText}
+          profileMainTextResult={profileMainTextResult}
+          useCinderellaStory={useCinderellaStory}
+          onUseCinderellaStoryChange={setUseCinderellaStory}
+        />
+
+        <ReportExport
+          topic={currentTopic}
+          target={currentTarget}
+          conceptResult={conceptResult}
+          selectedCatchphrase={selectedCatchphrase}
+          sellerName={sellerName}
+          introResult={introResult}
+          serviceContent={serviceContent}
+          serviceDetail={serviceDetail}
+          profileMainTextResult={profileMainTextResult}
         />
       </div>
     </ErrorBoundary>

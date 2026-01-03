@@ -5,6 +5,7 @@ const SelfIntroGenerator = ({
     loading,
     introResult,
     selectedCatchphrase,
+    onCatchphraseChange,
     sellerName
 }) => {
 
@@ -20,8 +21,24 @@ const SelfIntroGenerator = ({
             <h2 style={{ color: 'var(--accent)', marginBottom: '1rem' }}>STEP5: 自己紹介文の作成（冒頭100文字）</h2>
 
             <div style={{ marginBottom: '1.5rem', padding: '1rem', background: 'rgba(0, 150, 255, 0.05)', borderRadius: '8px' }}>
-                <p style={{ fontWeight: 'bold', marginBottom: '0.5rem' }}>選択中のキャッチコピー:</p>
-                <p style={{ fontStyle: 'italic', color: 'var(--text-color)' }}>{selectedCatchphrase}</p>
+                <p style={{ fontWeight: 'bold', marginBottom: '0.5rem' }}>選択中のキャッチコピー (編集可能):</p>
+                <textarea
+                    value={selectedCatchphrase}
+                    onChange={(e) => onCatchphraseChange(e.target.value)}
+                    style={{
+                        width: '100%',
+                        padding: '0.8rem',
+                        borderRadius: '6px',
+                        border: '1px solid var(--border-color)',
+                        background: 'var(--bg-color)',
+                        color: 'var(--text-color)',
+                        fontSize: '1rem',
+                        lineHeight: '1.5',
+                        resize: 'vertical',
+                        minHeight: '80px',
+                        fontFamily: 'inherit'
+                    }}
+                />
             </div>
 
             <p style={{ marginBottom: '1rem', fontSize: '0.9rem' }}>
