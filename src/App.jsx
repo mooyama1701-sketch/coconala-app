@@ -25,6 +25,10 @@ function App() {
   const [profileMainTextResult, setProfileMainTextResult] = useState(null); // プロフィール本文結果
   const [showKeyInput, setShowKeyInput] = useState(false);
 
+  // レポート用保存データ
+  const [savedStep1, setSavedStep1] = useState([]);
+  const [savedStep2, setSavedStep2] = useState([]);
+
   // 生成時の入力内容を保持
   const [currentTopic, setCurrentTopic] = useState('');
   const [currentTarget, setCurrentTarget] = useState('');
@@ -99,9 +103,12 @@ function App() {
         currentTopic,
         currentTarget,
         selectedStep1,
+        selectedStep1,
         selectedStep2
       );
       setConceptResult(concept);
+      setSavedStep1(selectedStep1);
+      setSavedStep2(selectedStep2);
     } catch (error) {
       console.error(error);
       alert(error.message);
@@ -308,12 +315,16 @@ function App() {
         <ReportExport
           topic={currentTopic}
           target={currentTarget}
+          step1Items={savedStep1}
+          step2Items={savedStep2}
           conceptResult={conceptResult}
+          careerSkills={savedCareerSkills}
           selectedCatchphrase={selectedCatchphrase}
           sellerName={sellerName}
           introResult={introResult}
           serviceContent={serviceContent}
           serviceDetail={serviceDetail}
+          referenceProfile={referenceProfile}
           profileMainTextResult={profileMainTextResult}
         />
       </div>
