@@ -8,6 +8,7 @@ import ProfileGenerator from './components/ProfileGenerator';
 import SelfIntroGenerator from './components/SelfIntroGenerator';
 import ServiceContentGenerator from './components/ServiceContentGenerator';
 import ReportExport from './components/ReportExport';
+import TokenUsageDisplay from './components/TokenUsageDisplay';
 
 function App() {
   const [apiKey, setApiKey] = useState('');
@@ -21,9 +22,12 @@ function App() {
   const [result, setResult] = useState(null);
   const [conceptResult, setConceptResult] = useState(null);
   const [profileResult, setProfileResult] = useState(null);
-  const [introResult, setIntroResult] = useState(null); // 自己紹介文結果
-  const [profileMainTextResult, setProfileMainTextResult] = useState(null); // プロフィール本文結果
+  const [introResult, setIntroResult] = useState(null);
+  const [profileMainTextResult, setProfileMainTextResult] = useState(null);
   const [showKeyInput, setShowKeyInput] = useState(false);
+
+  // トークン使用量
+  const [tokenUsage, setTokenUsage] = useState({ input: 0, output: 0 });
 
   // レポート用保存データ
   const [savedStep1, setSavedStep1] = useState([]);
@@ -42,8 +46,7 @@ function App() {
   // ProfileGeneratorからLiftしたState
   const [sellerName, setSellerName] = useState('');
   const [selectedCatchphrase, setSelectedCatchphrase] = useState(null);
-  const [careerSkills, setCareerSkills] = useState(''); // Memo: careerSkillsはProfileGenerator内で管理していたが、自己紹介文生成に必要なためここでも持つか、ProfileGeneratorから受け取る必要がある。
-  // 今回はProfileGeneratorのonGenerateProfileで受け取った値を保持しておくのが自然。
+  const [careerSkills, setCareerSkills] = useState('');
   const [savedCareerSkills, setSavedCareerSkills] = useState('');
 
   useEffect(() => {
@@ -57,6 +60,15 @@ function App() {
     const key = e.target.value;
     setApiKey(key);
     localStorage.setItem('gemini_api_key', key);
+  };
+
+  const updateTokenUsage = (usage) => {
+    if (usage) {
+      setTokenUsage(prev => ({
+        input: prev.input + (usage.promptTokenCount || 0),
+        output: prev.output + (usage.candidatesTokenCount || 0)
+      }));
+    }
   };
 
   const handleGenerate = async (topic, target) => {
@@ -75,9 +87,10 @@ function App() {
     setCurrentTarget(target);
 
     try {
-      const generatedText = await generateConcept(apiKey, topic, target);
-      console.log("Generated JSON:", generatedText);
-      setResult(generatedText);
+      const { value, usage } = await generateConcept(apiKey, topic, target);
+      console.log("Generated JSON:", value);
+      setResult(value);
+      updateTokenUsage(usage);
     } catch (error) {
       console.error(error);
       alert(error.message);
@@ -98,17 +111,17 @@ function App() {
     setIntroResult(null);
 
     try {
-      const concept = await generateAccountConcept(
+      const { value, usage } = await generateAccountConcept(
         apiKey,
         currentTopic,
         currentTarget,
         selectedStep1,
-        selectedStep1,
         selectedStep2
       );
-      setConceptResult(concept);
+      setConceptResult(value);
       setSavedStep1(selectedStep1);
       setSavedStep2(selectedStep2);
+      updateTokenUsage(usage);
     } catch (error) {
       console.error(error);
       alert(error.message);
@@ -126,15 +139,16 @@ function App() {
     setLoadingProfile(true);
     setProfileResult(null);
     setIntroResult(null);
-    setSavedCareerSkills(skills); // 後で自己紹介文生成に使うために保存
+    setSavedCareerSkills(skills);
 
     try {
-      const profile = await generateProfileCatchphrase(
+      const { value, usage } = await generateProfileCatchphrase(
         apiKey,
         conceptResult,
         skills
       );
-      setProfileResult(profile);
+      setProfileResult(value);
+      updateTokenUsage(usage);
     } catch (error) {
       console.error(error);
       alert(error.message);
@@ -150,8 +164,9 @@ function App() {
     }
     setLoadingNames(true);
     try {
-      const result = await generateNameSuggestions(apiKey, conceptResult);
-      return result.names || [];
+      const { value, usage } = await generateNameSuggestions(apiKey, conceptResult);
+      if (usage) updateTokenUsage(usage);
+      return value.names || [];
     } catch (error) {
       console.error(error);
       alert(error.message);
@@ -175,14 +190,15 @@ function App() {
     setIntroResult(null);
 
     try {
-      const intro = await generateSelfIntroduction(
+      const { value, usage } = await generateSelfIntroduction(
         apiKey,
         conceptResult,
-        savedCareerSkills, // 保存しておいた経歴データを使用
+        savedCareerSkills,
         sellerName,
         selectedCatchphrase
       );
-      setIntroResult(intro);
+      setIntroResult(value);
+      updateTokenUsage(usage);
     } catch (error) {
       console.error(error);
       alert(error.message);
@@ -205,13 +221,9 @@ function App() {
     setProfileMainTextResult(null);
 
     try {
-      const text = await generateProfileMainText(
+      const { value, usage } = await generateProfileMainText(
         apiKey,
-        conceptResult, // コンセプト（JSON文字列の可能性があるので注意が必要だが、generateProfileMainText内で単純に埋め込むなら文字列として扱われる）
-        // conceptResultはSTEP3で返された文字列（JSONではない）のはず。generateAccountConceptはtext()を返している。
-        // 確認: generateAccountConceptは `return response.text();` しているので文字列。
-        // ただし、generateConcept (STEP1/2) はJSONオブジェクトを返している。
-        // ここでは STEP3の説明文(conceptResult)を使う。
+        conceptResult,
         selectedCatchphrase,
         introResult,
         serviceContent,
@@ -219,7 +231,8 @@ function App() {
         referenceProfile,
         useCinderellaStory
       );
-      setProfileMainTextResult(text);
+      setProfileMainTextResult(value);
+      updateTokenUsage(usage);
     } catch (error) {
       console.error(error);
       alert(error.message);
@@ -231,6 +244,8 @@ function App() {
   return (
     <ErrorBoundary>
       <div className="container">
+        <TokenUsageDisplay tokenUsage={tokenUsage} />
+
         <div className="api-key-section">
           <button
             className="copy-btn"

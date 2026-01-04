@@ -1,5 +1,19 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
+const GEMINI_MODEL_NAME = "gemini-3-flash-preview";
+
+const getGenerativeModelInstance = (apiKey, isJson = false) => {
+  if (!apiKey) {
+    throw new Error("APIキーが設定されていません。");
+  }
+  const genAI = new GoogleGenerativeAI(apiKey);
+  const config = { model: GEMINI_MODEL_NAME };
+  if (isJson) {
+    config.generationConfig = { responseMimeType: "application/json" };
+  }
+  return genAI.getGenerativeModel(config);
+};
+
 const PROMPT_TEMPLATE = `
 #前提条件:
 - タイトル: ココナラアカウント設計ガイド
@@ -105,16 +119,7 @@ const PROFILE_PROMPT_TEMPLATE = `
 `;
 
 export const generateConcept = async (apiKey, contentTopic, targetAudience) => {
-  if (!apiKey) {
-    throw new Error("APIキーが設定されていません。");
-  }
-
-  const genAI = new GoogleGenerativeAI(apiKey);
-  // JSON mode is recommended for structured output
-  const model = genAI.getGenerativeModel({
-    model: "gemini-3-flash-preview",
-    generationConfig: { responseMimeType: "application/json" }
-  });
+  const model = getGenerativeModelInstance(apiKey, true);
 
   // Use a function for replacement to avoid special character issues
   const prompt = PROMPT_TEMPLATE
@@ -125,7 +130,10 @@ export const generateConcept = async (apiKey, contentTopic, targetAudience) => {
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const text = response.text();
-    return JSON.parse(text);
+    return {
+      value: JSON.parse(text),
+      usage: result.response.usageMetadata
+    };
   } catch (error) {
     console.error("Gemini Generation Error:", error);
     throw new Error(`生成に失敗しました: ${error.message}`);
@@ -133,12 +141,7 @@ export const generateConcept = async (apiKey, contentTopic, targetAudience) => {
 };
 
 export const generateAccountConcept = async (apiKey, contentTopic, targetAudience, selectedPainPoints, selectedIdealFuture) => {
-  if (!apiKey) {
-    throw new Error("APIキーが設定されていません。");
-  }
-
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
+  const model = getGenerativeModelInstance(apiKey, false);
 
   // Use a function for replacement to avoid special character issues (like $)
   const prompt = CONCEPT_PROMPT_TEMPLATE
@@ -150,7 +153,10 @@ export const generateAccountConcept = async (apiKey, contentTopic, targetAudienc
   try {
     const result = await model.generateContent(prompt);
     const response = await result.response;
-    return response.text();
+    return {
+      value: response.text(),
+      usage: result.response.usageMetadata
+    };
   } catch (error) {
     console.error("Gemini Concept Generation Error:", error);
     throw new Error(`コンセプト生成に失敗しました: ${error.message}`);
@@ -158,16 +164,7 @@ export const generateAccountConcept = async (apiKey, contentTopic, targetAudienc
 };
 
 export const generateProfileCatchphrase = async (apiKey, concept, careerSkills) => {
-  if (!apiKey) {
-    throw new Error("APIキーが設定されていません。");
-  }
-
-  const genAI = new GoogleGenerativeAI(apiKey);
-  // Using JSON mode
-  const model = genAI.getGenerativeModel({
-    model: "gemini-3-flash-preview",
-    generationConfig: { responseMimeType: "application/json" }
-  });
+  const model = getGenerativeModelInstance(apiKey, true);
 
   const prompt = PROFILE_PROMPT_TEMPLATE
     .replace(/{{concept}}/g, () => concept)
@@ -177,7 +174,10 @@ export const generateProfileCatchphrase = async (apiKey, concept, careerSkills) 
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const text = response.text();
-    return JSON.parse(text);
+    return {
+      value: JSON.parse(text),
+      usage: result.response.usageMetadata
+    };
   } catch (error) {
     console.error("Gemini Profile Generation Error:", error);
     throw new Error(`プロフィール生成に失敗しました: ${error.message}`);
@@ -213,15 +213,7 @@ const NAME_PROMPT_TEMPLATE = `
 `;
 
 export const generateNameSuggestions = async (apiKey, concept) => {
-  if (!apiKey) {
-    throw new Error("APIキーが設定されていません。");
-  }
-
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({
-    model: "gemini-3-flash-preview",
-    generationConfig: { responseMimeType: "application/json" }
-  });
+  const model = getGenerativeModelInstance(apiKey, true);
 
   const prompt = NAME_PROMPT_TEMPLATE.replace(/{{concept}}/g, () => concept);
 
@@ -229,7 +221,10 @@ export const generateNameSuggestions = async (apiKey, concept) => {
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const text = response.text();
-    return JSON.parse(text);
+    return {
+      value: JSON.parse(text),
+      usage: result.response.usageMetadata
+    };
   } catch (error) {
     console.error("Gemini Name Generation Error:", error);
     throw new Error(`名前の提案に失敗しました: ${error.message}`);
@@ -268,12 +263,7 @@ STEP3で出力された「アカウントコンセプト」を明確にしつつ
 `;
 
 export const generateSelfIntroduction = async (apiKey, concept, careerSkills, sellerName, catchphrase) => {
-  if (!apiKey) {
-    throw new Error("APIキーが設定されていません。");
-  }
-
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
+  const model = getGenerativeModelInstance(apiKey, false);
 
   const prompt = SELF_INTRO_PROMPT_TEMPLATE
     .replace(/{{concept}}/g, () => concept)
@@ -284,7 +274,10 @@ export const generateSelfIntroduction = async (apiKey, concept, careerSkills, se
   try {
     const result = await model.generateContent(prompt);
     const response = await result.response;
-    return response.text();
+    return {
+      value: response.text(),
+      usage: result.response.usageMetadata
+    };
   } catch (error) {
     console.error("Gemini Self Intro Generation Error:", error);
     throw new Error(`自己紹介文の生成に失敗しました: ${error.message}`);
@@ -344,12 +337,7 @@ const PROFILE_MAIN_TEXT_PROMPT_TEMPLATE = `
 `;
 
 export const generateProfileMainText = async (apiKey, concept, catchphrase, introText, serviceContent, serviceDetail, referenceProfile, useCinderellaStory) => {
-  if (!apiKey) {
-    throw new Error("APIキーが設定されていません。");
-  }
-
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
+  const model = getGenerativeModelInstance(apiKey, false);
 
   let prompt = PROFILE_MAIN_TEXT_PROMPT_TEMPLATE
     .replace(/{{concept}}/g, () => concept)
@@ -372,7 +360,11 @@ export const generateProfileMainText = async (apiKey, concept, catchphrase, intr
     const response = await result.response;
     const bodyText = response.text();
     // 冒頭文と本文を結合して返す
-    return `${introText}\n\n${bodyText}`;
+    const fullText = `${introText}\n\n${bodyText}`;
+    return {
+      value: fullText,
+      usage: result.response.usageMetadata
+    };
   } catch (error) {
     console.error("Gemini Profile Main Text Generation Error:", error);
     throw new Error(`プロフィール本文の生成に失敗しました: ${error.message}`);
